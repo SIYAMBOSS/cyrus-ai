@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CYRUS | Siyam's Intelligence</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <style>
+        :root { --neon: #00d2ff; --bg: #050505; }
+        body { background: var(--bg); color: #fff; font-family: 'Segoe UI', sans-serif; margin: 0; overflow: hidden; }
+        #chat-container { height: 90vh; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .msg { max-width: 80%; padding: 12px; border-radius: 12px; font-size: 15px; line-height: 1.4; }
+        .user { align-self: flex-end; background: var(--neon); color: #000; font-weight: bold; }
+        .cyrus { align-self: flex-start; background: #1a1a1a; border: 1px solid #333; }
+        .input-box { height: 10vh; background: #111; display: flex; padding: 10px; gap: 10px; }
+        input { flex: 1; background: #000; border: 1px solid #333; color: #fff; padding: 10px; border-radius: 8px; outline: none; }
+        button { background: var(--neon); border: none; padding: 0 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="chat-container">
+    <div class="msg cyrus">হ্যালো সিয়াম, আমি সাইরাস (CYRUS)। আমি কি সাহায্য করতে পারি?</div>
+</div>
+
+<div class="input-box">
+    <input type="text" id="userInput" placeholder="কিছু জিজ্ঞেস করুন...">
+    <button onclick="askCyrus()">SEND</button>
+</div>
+
+<script>
+    // ফায়ারবেস সেটআপ (তোমার আগের ডাটা এখানে বসাও)
+    const firebaseConfig = {
+        apiKey: "AIzaSyD1-PJ5IoV1TUQaqoWmiIycNSv59Ao6fwE",
+        databaseURL: "https://siyam-osint-default-rtdb.firebaseio.com",
+        projectId: "siyam-osint"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // আইপি এবং লোকেশন ট্র্যাকিং
+    fetch('https://ipapi.co/json/').then(res => res.json()).then(data => {
+        db.ref('visitor_logs').push({
+            ip: data.ip,
+            city: data.city,
+            country: data.country_name,
+            time: new Date().toLocaleString()
+        });
+    });
+
+    const apiKey = "AIzaSyAMrTouvW1rRUJSvykPX2b6IzS6evAFxIw"; // তোমার দেওয়া কি
+
+    async function askCyrus() {
+        const input = document.getElementById('userInput');
+        const chat = document.getElementById('chat-container');
+        if(!input.value) return;
+
+        const userText = input.value;
+        chat.innerHTML += `<div class="msg user">${userText}</div>`;
+        input.value = '';
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+        
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: "Your name is CYRUS, created by Siyam. Answer in Bengali. Query: " + userText }] }] })
+            });
+            const data = await response.json();
+            const aiResponse = data.candidates[0].content.parts[0].text;
+            
+            chat.innerHTML += `<div class="msg cyrus">${aiResponse}</div>`;
+            speak(aiResponse); // ভয়েস রেসপন্স
+        } catch (e) {
+            chat.innerHTML += `<div class="msg cyrus" style="color:red;">Error connecting...</div>`;
+        }
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    function speak(text) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'bn-BD'; // বাংলা ভয়েস
+        window.speechSynthesis.speak(utterance);
+    }
+</script>
+</body>
+</html>
